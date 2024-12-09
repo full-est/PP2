@@ -1,55 +1,25 @@
 from fastapi import FastAPI
+from database import Base, engine
+from user.user_routers import router
+from auth.auth import auth
+from project.project_routers import project_router
+from project_member.project_member_routers import member_router
+# from column_routers import column_router
 
 app = FastAPI()
+app.include_router(auth)
+app.include_router(router)
+app.include_router(project_router)
+# app.include_router(column_router)
+app.include_router(member_router)
 
-# Позволяет создавать новых пользователей.
-@app.post('/users')
-def add_user():
-    ...
+Base.metadata.create_all(bind=engine)
 
-# Позволяет видеть всех зарегистрированных пользователей.
-@app.get('/users')
-def get_all_users():
-    ...
-
-# Для проверки данных конкретного пользователя.
-@app.get('/users/{user_id}')
-def get_user():
-    ...
-
-@app.delete('/users/{user_id}')
-def delete_user():
-    ...
-
-# Создает новый проект. Здесь задается owner_id (владелец проекта).
-@app.post('/projects')
-def add_project():
-    ...
 
 # Позволяет пользователю увидеть все проекты, в которых он участвует.
-@app.get('/projects')
-def get_all_projects():
-    ...
 
-# Детальная информация о проекте.
-@app.get('/projects/{project_id}')
-def get_project():
-    ...
-
-# Позволяет изменять название или описание проекта.
-@app.put('/projects/{project_id}')
-def update_project():
-    ...
-
-# Удаляет проект и связанные данные (колонки, задачи, участников).
-@app.delete('/projects/{project_id}')
-def delete_project():
-    ...
 
 # Позволяет владельцу проекта добавлять других пользователей.
-@app.post('/projects/{project_id}/members')
-def add_member():
-    ...
 
 # Убирает участника из проекта.
 @app.delete('/projects/{project_id}/members/{member_id}')
@@ -62,32 +32,32 @@ def get_members():
     ...
 
 # Добавляет новую колонку в проект.
-@app.post('/projects/{project_id}/columns')
+@app.post('/projects/{project_id}/column')
 def add_column():
     ...
 
 # Возвращает все колонки проекта с их порядком (order).
-@app.get('/projects/{project_id}/columns')
+@app.get('/projects/{project_id}/column')
 def get_columns():
     ...
 
 # Позволяет изменить название или порядок колонки.
-@app.put('/projects/{project_id}/columns/{column_id}')
+@app.put('/projects/{project_id}/column/{column_id}')
 def update_column():
     ...
 
 # Удаляет колонку вместе с её задачами.
-@app.delete('/projects/{project_id}/columns/{column_id}')
+@app.delete('/projects/{project_id}/column/{column_id}')
 def delete_column():
     ...
 
 # Создает задачу внутри конкретной колонки.
-@app.post('/columns/{column_id}/tasks')
+@app.post('/column/{column_id}/tasks')
 def add_task():
     ...
 
 # Возвращает задачи с возможностью фильтрации по статусу, сроку выполнения, исполнителю и т. д.
-@app.get('/columns/{column_id}/tasks')
+@app.get('/column/{column_id}/tasks')
 def get_all_tasks():
     ...
 
@@ -102,7 +72,7 @@ def update_task():
     ...
 
 # Удаляет задачу
-@app.delete('/projects/{project_id}/columns/{column_id}')
+@app.delete('/projects/{project_id}/column/{column_id}')
 def delete_task():
     ...
 

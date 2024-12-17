@@ -1,14 +1,17 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 from datetime import datetime
 
 class User(BaseModel):
     username: str
     created_at: datetime
+    role: str
 
-class UserCreate(User):
+class UserCreate(BaseModel):
+    username: str
+    created_at: datetime
     email: EmailStr
-    password: str
+    password: str = Field(..., min_length=1, description="Password must not be empty")
 
 class UserUpdate(BaseModel):
     username: str
@@ -21,13 +24,12 @@ class UserResponse(User):
         from_attributes = True
 
 class UserLogin(BaseModel):
-    email: EmailStr
+    email: str
     password: str
 
 class ProjectCreate(BaseModel):
     name: str
     description: Optional[str] = None
-    owner_id: int
 
 class ProjectUpdate(ProjectCreate):
     name: Optional[str]
@@ -42,10 +44,6 @@ class ProjectResponse(ProjectUpdate):
 
     class Config:
         from_attributes = True
-
-class ProjectMemberCreate(BaseModel):
-    user_id: int
-    role: str
 
 
 class ProjectMemberResponse(BaseModel):
@@ -79,16 +77,13 @@ class TaskCreate(BaseModel):
     title: str
     description: Optional[str] = None
     status: str
-    column_id: int
     due_date: Optional[datetime] = None
     assigned_to: Optional[int] = None
 
 
 class TaskUpdate(BaseModel):
-    title: Optional[str]
     description: Optional[str]
     status: Optional[str]
-    column_id: Optional[int]
     due_date: Optional[datetime]
     assigned_to: Optional[int]
 
@@ -105,3 +100,21 @@ class TaskResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class TaskLogResponse(BaseModel):
+    id: int
+    task_id: int
+    message: str
+    created_at: datetime
+    user_id: Optional[int]
+    task: Optional[TaskResponse]
+
+    class Config:
+        from_attributes = True
+
+class TokenOut(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+class RoleUpdate(BaseModel):
+    role: str  # user, admin

@@ -1,0 +1,54 @@
+# Файлы настроек IDE
+.vscode/
+.idea/
+
+# Логи
+*.log
+*.out
+*.err
+
+# Кеши Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Виртуальное окружение
+env/
+venv/
+ENV/
+VENV/
+
+# Конфиденциальные данные
+*.env
+*.key
+*.pem
+
+# Библиотеки и зависимости
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Docker
+*.pid
+*.sock
+
+# Миграции
+migrations/
+
+# Pytest временные файлы
+.cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# MacOS системные файлы
+.DS_Store
+
+# Windows системные файлы
+Thumbs.db
+
+# Бинарные файлы
+*.so
+*.dll

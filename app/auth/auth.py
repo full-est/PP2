@@ -63,8 +63,8 @@ def login_user(
     return TokenOut(access_token=access_token)
 
 
-
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    from app.user.user_routers import get_user_by_id
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         id: int = payload.get("id")
@@ -73,7 +73,5 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-    user = db.query(User).filter(User.id == id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    user = get_user_by_id(id, db)
     return user

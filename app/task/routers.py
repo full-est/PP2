@@ -7,10 +7,25 @@ from app.database import get_db
 from app.models import Task, Column, User, ProjectMember
 from app.schemas import TaskCreate, TaskUpdate, TaskResponse
 from app.task.tasklog import create_task_log
+from app.columns.column_routers import get_column_by_id, get_column_to_update
 
 task = APIRouter(
-    tags=["tasks"]
+    tags=["tasks"],
+    dependencies=[Depends(get_current_user)]
 )
+
+def get_task_by_id(task_id: int, db: Session = Depends(get_db)):
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return task
+
+def get_project_member(db, column, current_user):
+    project_member = db.query(ProjectMember).filter(
+        ProjectMember.project_id == column.project_id,
+        ProjectMember.user_id == current_user.id
+    ).first()
+    return project_member
 
 # Создание задачи
 @task.post("/{project_id}/columns/{column_id}/tasks", response_model=TaskResponse)
@@ -18,13 +33,8 @@ def create_task(column_id: int,
                 task: TaskCreate,
                 db: Session = Depends(get_db),
                 current_user: User = Depends(get_current_user)):
-    column = db.query(Column).filter(Column.id == column_id).first()
 
-    if not column:
-        raise HTTPException(status_code=404, detail="Column not found")
-
-    if column.project.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized to add tasks to this column")
+    column = get_column_to_update(column_id, db, current_user)
 
     new_task = Task(
         title=task.title,
@@ -50,7 +60,7 @@ def create_task(column_id: int,
 
 # Получение всех задач колонки
 @task.get("/{project_id}/columns/{column_id}/tasks", response_model=list[TaskResponse])
-def get_tasks(column_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def get_tasks(column_id: int, db: Session = Depends(get_db)):
     tasks = db.query(Task).filter(Task.column_id == column_id).all()
     return tasks
 
@@ -60,18 +70,11 @@ def update_task(task_id: int,
                 task_data: TaskUpdate,
                 db: Session = Depends(get_db),
                 current_user: User = Depends(get_current_user)):
-    task = db.query(Task).filter(Task.id == task_id).first()
-    column = db.query(Column).filter(Column.id == task.column_id).first()
-    project_member = db.query(ProjectMember).filter(
-            ProjectMember.project_id == column.project_id,
-            ProjectMember.user_id == current_user.id
-        ).first()
 
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
+    task = get_task_by_id(task_id, db)
+    column = get_column_by_id(task.column_id, db)
+    project_member = get_project_member(db, column, current_user)
 
-    if not column:
-        raise HTTPException(status_code=404, detail="Column not found")
 
     if not project_member:
         raise HTTPException(status_code=404, detail="Not authorized to update this task")
@@ -100,9 +103,8 @@ def update_task(task_id: int,
 def delete_task(task_id: int,
                 db: Session = Depends(get_db),
                 current_user: User = Depends(get_current_user)):
-    task = db.query(Task).filter(Task.id == task_id).first()
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
+
+    task = get_task_by_id(task_id, db)
 
     if task.columns.project.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized to add tasks to this column")
@@ -130,15 +132,10 @@ def get_tasks_by_column(
     current_user: User = Depends(get_current_user),
 ):
     # Проверяем существование колонки
-    column = db.query(Column).filter(Column.id == column_id).first()
-    if not column:
-        raise HTTPException(status_code=404, detail="Column not found")
+    column = get_column_by_id(column_id, db)
 
     # Проверяем доступ к проекту, связанному с колонкой
-    project_member = db.query(ProjectMember).filter(
-        ProjectMember.project_id == column.project_id,
-        ProjectMember.user_id == current_user.id
-    ).first()
+    project_member = get_project_member(db, column, current_user)
 
     if not project_member:
         raise HTTPException(status_code=403, detail="Not authorized for this project")

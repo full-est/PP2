@@ -4,6 +4,7 @@ from app.auth.auth import get_current_user
 from app.models import ProjectMember, User, Project
 from app.schemas import ProjectMemberResponse, UserResponse
 from app.database import get_db
+from app.project.project_routers import get_project_by_id
 
 member = APIRouter(
     tags=["project_member"]
@@ -16,9 +17,7 @@ def get_project_members(
     current_user: int = Depends(get_current_user)
 ):
     # Проверяем существование проекта
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+    get_project_by_id(project_id, db)
 
     # Проверяем, имеет ли пользователь доступ к проекту
     project_member = db.query(ProjectMember).filter(
@@ -43,10 +42,8 @@ def add_project_member(project_id: int,
                        user_id: int,
                        db: Session = Depends(get_db),
                        current_user: User = Depends(get_current_user)):
-    # Проверяем, существует ли проект
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+
+    project = get_project_by_id(project_id, db)
 
     # Только владелец проекта может добавлять участников
     if project.owner_id != current_user.id:
@@ -77,10 +74,8 @@ def remove_project_member(project_id: int,
                           user_id: int,
                           db: Session = Depends(get_db),
                           current_user: User = Depends(get_current_user)):
-    # Проверяем, существует ли проект
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+
+    project = get_project_by_id(project_id, db)
 
     # Только владелец проекта может удалять участников
     if project.owner_id != current_user.id:

@@ -9,11 +9,23 @@ projects = APIRouter(
     tags=["project"]
 )
 
+def get_project_by_id(project_id: int, db: Session = Depends(get_db)):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return project
+
+def get_project_current_user(project_id, db, current_user):
+    project = get_project_by_id(project_id, db)
+    if project.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to update and delete this project")
+
+    return project
+
 # Создает новый проект
 @projects.post("/projects", response_model=ProjectResponse)
 def create_project(project: ProjectCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if not current_user:
-        raise HTTPException(status_code=404, detail="User not found")
+
     new_project = Project(
         name=project.name,
         description=project.description,
@@ -44,9 +56,7 @@ def get_projects(db: Session = Depends(get_db)):
 # Ищем проект по ID
 @projects.get("/projects/{project_id}", response_model=ProjectResponse)
 def get_project(project_id: int, db: Session = Depends(get_db)):
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+    project = get_project_by_id(project_id, db)
     return project
 
 # Получение всех проектов, в которых пользователь является участником
@@ -71,11 +81,9 @@ def update_project(project_id: int,
                    project_data: ProjectUpdate,
                    db: Session = Depends(get_db),
                    current_user: User = Depends(get_current_user)):
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-    if project.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized to update this project")
+
+    project = get_project_current_user(project_id, db, current_user)
+
     project.name = project_data.name
     project.description = project_data.description
     db.commit()
@@ -87,11 +95,9 @@ def update_project(project_id: int,
 def delete_project(project_id: int,
                    db: Session = Depends(get_db),
                    current_user: User = Depends(get_current_user)):
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-    if project.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized to delete this project")
+
+    project = get_project_current_user(project_id, db, current_user)
+
     db.delete(project)
     db.commit()
     return {"message": "Project deleted successfully"}

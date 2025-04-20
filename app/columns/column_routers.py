@@ -4,19 +4,33 @@ from fastapi import HTTPException, Depends, APIRouter
 from sqlalchemy.orm import Session
 from app.auth.auth import get_current_user
 from app.database import get_db
+from app.project.project_routers import get_project_by_id
 
 column = APIRouter(
-    tags=["columns"]
+    tags=["columns"],
+    dependencies=[Depends(get_current_user)]
 )
+
+def get_column_by_id(column_id: int, db: Session = Depends(get_db)):
+    column = db.query(Column).filter(Column.id == column_id).first()
+    if not column:
+        raise HTTPException(status_code=404, detail="Column not found")
+    return column
+
+def get_column_to_update(column_id: int, db, current_user):
+    column = get_column_by_id(column_id, db)
+    if column.project.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to update and delete this column")
+    return column
+
 # Создание колонки
 @column.post("/{project_id}/columns", response_model=ColumnResponse)
 def create_column(project_id: int, 
                   column: ColumnCreate, 
                   db: Session = Depends(get_db), 
                   current_user: User = Depends(get_current_user)):
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+
+    project = get_project_by_id(project_id, db)
     if project.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized to add columns to this project")
 
@@ -32,10 +46,14 @@ def create_column(project_id: int,
 
 # Получение всех колонок проекта
 @column.get("/{project_id}/columns", response_model=list[ColumnResponse])
-def get_columns(project_id: int, db: Session = Depends(get_db), 
-                current_user: User = Depends(get_current_user)):
+def get_columns(project_id: int, db: Session = Depends(get_db)):
     columns = db.query(Column).filter(Column.project_id == project_id).all()
     return columns
+
+@column.get("/{project_id}/columns/{column_id}", response_model=ColumnResponse)
+def get_column(column_id: int, db: Session = Depends(get_db)):
+    column = get_column_by_id(column_id, db)
+    return column
 
 # Обновление колонки
 @column.put("/{project_id}/columns/{column_id}", response_model=ColumnResponse)
@@ -44,12 +62,8 @@ def update_column(column_id: int,
                   db: Session = Depends(get_db), 
                   current_user: User = Depends(get_current_user)):
 
-    column = db.query(Column).filter(Column.id == column_id).first()
-    if not column:
-        raise HTTPException(status_code=404, detail="Column not found")
+    column = get_column_to_update(column_id, db, current_user)
 
-    if column.project.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized to update this column")
     column.name = column_data.name
     column.order = column_data.order
     db.commit()
@@ -61,12 +75,8 @@ def update_column(column_id: int,
 def delete_column(column_id: int,
                   db: Session = Depends(get_db),
                   current_user: User = Depends(get_current_user)):
-    column = db.query(Column).filter(Column.id == column_id).first()
-    if not column:
-        raise HTTPException(status_code=404, detail="Column not found")
 
-    if column.project.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized to delete this column")
+    column = get_column_to_update(column_id, db, current_user)
 
     db.delete(column)
     db.commit()
